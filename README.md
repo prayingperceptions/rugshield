@@ -12,11 +12,14 @@ Live: https://rugshield-xi.vercel.app
 ## How it works
 
 1. Connect a wallet (auto-switches to Base).
-2. Paste a token contract address.
+2. Paste a token contract address on Base.
 3. Click **Deep scan** — your wallet sends a **$0.005 USDC** transfer on Base.
    The API verifies the Transfer event on-chain before scanning. No account,
    no API key, no subscription, no middlemen.
 4. Get a 0–100 score, A–F grade, itemized reasons, market + contract security breakdown.
+
+Base-native by design: priced, paid, and verified on Base. (The underlying
+risk engine is multi-chain capable — Base is where the product lives.)
 
 ![payment](screenshots/02-payment.jpg)
 
