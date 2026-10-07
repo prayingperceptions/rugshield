@@ -42,8 +42,9 @@ export default function Home() {
   const { sendTransactionAsync } = useSendTransaction();
   const { switchChain } = useSwitchChain();
   const [input, setInput] = useState("");
-  const [chain, setChain] = useState("base");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  // Base-native. The API's risk engine is multi-chain capable, but every scan
+  // here is priced, paid, and verified on Base.
 
   // Auto-switch to Base on connect — scans settle on Base, nothing else.
   useEffect(() => {
@@ -72,7 +73,7 @@ export default function Home() {
       return;
     }
     try {
-      const url = `${API_BASE}/v1/risk?token=${token}&chain=${chain}`;
+      const url = `${API_BASE}/v1/risk?token=${token}&chain=base`;
       const first = await fetch(url);
       if (first.ok) {
         setPhase({ kind: "report", report: (await first.json()) as RiskReport });
@@ -183,22 +184,13 @@ export default function Home() {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="0x… token contract address"
+              placeholder="0x… token contract address on Base"
               spellCheck={false}
               className="flex-1 min-w-0 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 font-mono text-sm placeholder:text-zinc-600 focus:outline-none focus:border-blue-600"
             />
-            <select
-              value={chain}
-              onChange={(e) => setChain(e.target.value)}
-              className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-3 text-sm focus:outline-none"
-            >
-              <option value="base">Base</option>
-              <option value="ethereum">Ethereum</option>
-              <option value="bsc">BSC</option>
-              <option value="polygon">Polygon</option>
-              <option value="arbitrum">Arbitrum</option>
-              <option value="solana">Solana</option>
-            </select>
+            <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm font-semibold text-zinc-300 flex items-center">
+              Base
+            </div>
           </div>
           <button
             onClick={scan}
