@@ -1,24 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import { useAccount, useConnect, useDisconnect, useSignTypedData } from "wagmi";
+import { useEffect, useState } from "react";
+import { useAccount, useConnect, useDisconnect, useSendTransaction, useSwitchChain } from "wagmi";
+import { waitForTransactionReceipt } from "wagmi/actions";
+import { wagmiConfig } from "@/lib/wagmi";
+import { base } from "wagmi/chains";
+import { encodeFunctionData, parseAbi } from "viem";
 import {
   API_BASE,
-  USDC_DOMAIN,
-  TRANSFER_AUTH_TYPES,
-  buildAuthorization,
-  buildPaymentHeader,
+  USDC_BASE,
   parseChallenge,
-  type Authorization,
+  formatUsdc,
   type RiskReport,
 } from "@/lib/x402";
 
 type Phase =
   | { kind: "idle" }
-  | { kind: "signing" }
+  | { kind: "paying"; hash?: `0x${string}` }
   | { kind: "scanning" }
   | { kind: "report"; report: RiskReport }
   | { kind: "error"; message: string };
+
+const USDC_TRANSFER_ABI = parseAbi(["function transfer(address to, uint256 amount) returns (bool)"]);
 
 const GRADE_COLORS: Record<string, string> = {
   A: "text-emerald-400 border-emerald-500/40 bg-emerald-500/10",
@@ -33,13 +36,21 @@ function isAddress(v: string) {
 }
 
 export default function Home() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending: connecting } = useConnect();
   const { disconnect } = useDisconnect();
-  const { signTypedDataAsync } = useSignTypedData();
+  const { sendTransactionAsync } = useSendTransaction();
+  const { switchChain } = useSwitchChain();
   const [input, setInput] = useState("");
   const [chain, setChain] = useState("base");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+
+  // Auto-switch to Base on connect — scans settle on Base, nothing else.
+  useEffect(() => {
+    if (isConnected && chainId !== base.id) {
+      switchChain({ chainId: base.id });
+    }
+  }, [isConnected, chainId, switchChain]);
 
   async function scan() {
     const token = input.trim();
@@ -49,6 +60,15 @@ export default function Home() {
     }
     if (!isConnected || !address) {
       setPhase({ kind: "error", message: "Connect your wallet first — the $0.005 scan is paid on Base." });
+      return;
+    }
+    if (chainId !== base.id) {
+      try {
+        switchChain({ chainId: base.id });
+      } catch {
+        // wallet will prompt; user can retry scan after switching
+      }
+      setPhase({ kind: "error", message: "Switching to Base — hit scan again once your wallet confirms." });
       return;
     }
     try {
@@ -62,37 +82,41 @@ export default function Home() {
         const body = await first.text();
         throw new Error(`API error ${first.status}: ${body.slice(0, 160)}`);
       }
+      // 402: pay $0.005 USDC directly to the pay-to address on Base.
+      // The API verifies the Transfer event on-chain — no facilitator, no signature scheme.
       const challenge = parseChallenge(await first.json());
-      setPhase({ kind: "signing" });
+      setPhase({ kind: "paying" });
 
-      const auth: Authorization = buildAuthorization(address, challenge);
-      const signature = await signTypedDataAsync({
-        domain: { ...USDC_DOMAIN },
-        types: { ...TRANSFER_AUTH_TYPES },
-        primaryType: "TransferWithAuthorization",
-        message: {
-          from: auth.from,
-          to: auth.to,
-          value: BigInt(auth.value),
-          validAfter: BigInt(auth.validAfter),
-          validBefore: BigInt(auth.validBefore),
-          nonce: auth.nonce,
-        },
+      const hash = await sendTransactionAsync({
+        to: USDC_BASE as `0x${string}`,
+        data: encodeFunctionData({
+          abi: USDC_TRANSFER_ABI,
+          functionName: "transfer",
+          args: [challenge.payTo as `0x${string}`, BigInt(challenge.amount)],
+        }),
+        chainId: base.id,
       });
+      setPhase({ kind: "paying", hash });
+
+      // wait for the transfer to confirm, then redeem it for the report
+      const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, chainId: base.id });
+      if (receipt.status !== "success") {
+        throw new Error("USDC transfer failed on-chain. No scan charged.");
+      }
 
       setPhase({ kind: "scanning" });
-      const paid = await fetch(url, {
-        headers: { "X-PAYMENT": buildPaymentHeader(challenge, auth, signature) },
-      });
+      const paid = await fetch(
+        `${url}&txHash=${hash}`
+      );
       if (!paid.ok) {
         const body = await paid.text();
-        throw new Error(`Payment rejected (${paid.status}): ${body.slice(0, 160)}`);
+        throw new Error(`Payment not verified (${paid.status}): ${body.slice(0, 200)}`);
       }
       setPhase({ kind: "report", report: (await paid.json()) as RiskReport });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (/rejected|denied|user/i.test(msg)) {
-        setPhase({ kind: "error", message: "Signature rejected in wallet. No payment was made." });
+        setPhase({ kind: "error", message: "Transaction rejected in wallet. No payment was made." });
       } else {
         setPhase({ kind: "error", message: msg });
       }
@@ -165,18 +189,20 @@ export default function Home() {
           </div>
           <button
             onClick={scan}
-            disabled={phase.kind === "signing" || phase.kind === "scanning"}
+            disabled={phase.kind === "paying" || phase.kind === "scanning"}
             className="mt-3 w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-bold rounded-xl py-3"
           >
-            {phase.kind === "signing"
-              ? "Sign the $0.005 payment in your wallet…"
+            {phase.kind === "paying"
+              ? phase.hash
+                ? "Payment sent — waiting for Base confirmation…"
+                : "Confirm the $0.005 USDC payment in your wallet…"
               : phase.kind === "scanning"
-                ? "Scanning…"
+                ? "Payment verified — scanning…"
                 : "Deep scan — $0.005 USDC"}
           </button>
           <p className="mt-2 text-center text-xs text-zinc-500">
-            Paid per scan with x402 on Base. No account. No subscription. No payment leaves
-            your wallet until you sign.
+            One wallet confirmation sends $0.005 USDC on Base. No account. No subscription.
+            The API verifies your payment on-chain before scanning.
           </p>
         </section>
 
@@ -271,7 +297,7 @@ export default function Home() {
         {/* footer */}
         <footer className="mt-12 text-center text-xs text-zinc-600 space-y-1">
           <p>
-            Every scan pays $0.005 USDC on Base via x402 — no accounts, machines pay machines.
+            Every scan pays $0.005 USDC on Base — verified on-chain, no accounts, no middlemen.
           </p>
           <p>
             Built for Colosseum Crypto World&apos;s Fair · Base track ·{" "}
