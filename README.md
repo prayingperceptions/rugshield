@@ -5,16 +5,30 @@ honeypots, mint traps, hidden owners — before your money finds out.
 
 Built for the Colosseum Crypto World's Fair hackathon (Base track).
 
+Live: https://rugshield-xi.vercel.app
+
+![landing](screenshots/01-landing.png)
+
 ## How it works
 
-1. Connect a wallet (Base only).
-2. Paste a token contract address, pick a chain.
-3. Click **Deep scan** — your wallet signs a $0.005 USDC payment via **x402 v2**
-   (EIP-3009 `transferWithAuthorization`, no on-chain tx from you until the
-   facilitator settles).
+1. Connect a wallet (auto-switches to Base).
+2. Paste a token contract address.
+3. Click **Deep scan** — your wallet sends a **$0.005 USDC** transfer on Base.
+   The API verifies the Transfer event on-chain before scanning. No account,
+   no API key, no subscription, no middlemen.
 4. Get a 0–100 score, A–F grade, itemized reasons, market + contract security breakdown.
 
-No account. No API key. No subscription. Machines pay machines.
+![payment](screenshots/02-payment.png)
+
+## Real scans
+
+**openhuman — C (moderate risk):** contract clean, but the pair is hours old with thin volume.
+
+![openhuman report](screenshots/03-report-openhuman.png)
+
+**tacocat — D (high risk):** $82K volume against $9K liquidity on a day-old pair.
+
+![tacocat report](screenshots/04-report-tacocat.png)
 
 ## The risk engine
 
@@ -27,8 +41,8 @@ code in *this* repo was written during the hackathon window.
 ## Stack
 
 - Next.js 16 + Tailwind (app router)
-- wagmi + viem for wallet + EIP-712 signing
-- Hand-rolled x402 v2 "exact" scheme client (`src/lib/x402.ts`) — zero x402 SDK deps
+- wagmi + viem for wallet + direct USDC transfers on Base
+- On-chain payment verification in [token-risk-api](https://github.com/prayingperceptions/token-risk-api) (`?txHash=` checked against Base RPC — no facilitator)
 - Farcaster miniapp manifest at `.well-known/farcaster.json`
 
 ## Run it
