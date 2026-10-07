@@ -16,18 +16,25 @@ export interface PaymentChallenge {
 }
 
 export interface RiskReport {
-  token: string;
-  score: number;
-  grade: string;
-  verdict: string;
-  reasons: string[];
-  market?: { chain?: string; liquidityUsd?: number; ageDays?: number; volumeUsd?: number };
-  security?: {
-    honeypot?: boolean;
+  query: string;
+  checkedAt: string;
+  token: { address: string; name?: string; symbol?: string };
+  risk: { score: number; grade: string; reasons: string[] };
+  market?: {
+    chainId?: string;
+    liquidityUsd?: number;
+    volume24h?: number;
+    ageDays?: number;
+    priceUsd?: number;
+  };
+  contractSecurity?: {
+    isHoneypot?: boolean;
+    isMintable?: boolean;
     hiddenOwner?: boolean;
-    mintable?: boolean;
-    buyTax?: number;
-    sellTax?: number;
+    isOpenSource?: boolean;
+    isProxy?: boolean;
+    buyTaxPct?: number | null;
+    sellTaxPct?: number | null;
   };
   payment?: { txHash?: string | null; mode?: string };
 }
