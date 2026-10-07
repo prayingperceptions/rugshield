@@ -124,7 +124,20 @@ export default function Home() {
   }
 
   const report = phase.kind === "report" ? phase.report : null;
-  const gradeClass = report ? GRADE_COLORS[report.grade] ?? GRADE_COLORS.C : "";
+  const gradeClass = report ? GRADE_COLORS[report.risk.grade] ?? GRADE_COLORS.C : "";
+  const tokenAddr = report?.token.address ?? "";
+  const verdictText =
+    report == null
+      ? ""
+      : report.risk.grade === "A"
+        ? "looks clean"
+        : report.risk.grade === "B"
+          ? "low risk"
+          : report.risk.grade === "C"
+            ? "moderate risk"
+            : report.risk.grade === "D"
+              ? "high risk"
+              : "likely unsafe";
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -218,22 +231,25 @@ export default function Home() {
           <section className="mt-6 border border-zinc-800 rounded-2xl overflow-hidden">
             <div className={`px-5 py-4 border-b ${gradeClass} border`}>
               <div className="flex items-center gap-4">
-                <span className="text-5xl font-black">{report.grade}</span>
+                <span className="text-5xl font-black">{report.risk.grade}</span>
                 <div>
-                  <div className="font-bold">{report.verdict}</div>
+                  <div className="font-bold capitalize">{verdictText}</div>
                   <div className="text-sm opacity-80 font-mono">
-                    {report.token.slice(0, 10)}…{report.token.slice(-8)}
+                    {report.token.name ?? report.token.symbol ?? `${tokenAddr.slice(0, 10)}…${tokenAddr.slice(-8)}`}
+                  </div>
+                  <div className="text-xs opacity-60 font-mono">
+                    {tokenAddr.slice(0, 10)}…{tokenAddr.slice(-8)}
                   </div>
                 </div>
                 <div className="ml-auto text-right">
-                  <div className="text-3xl font-extrabold">{report.score}</div>
+                  <div className="text-3xl font-extrabold">{report.risk.score}</div>
                   <div className="text-xs opacity-70">/ 100</div>
                 </div>
               </div>
               <div className="mt-3 h-2 rounded-full bg-black/30 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-current"
-                  style={{ width: `${report.score}%` }}
+                  style={{ width: `${report.risk.score}%` }}
                 />
               </div>
             </div>
@@ -243,7 +259,7 @@ export default function Home() {
                 Why this grade
               </h3>
               <ul className="mt-2 space-y-1.5 text-sm">
-                {report.reasons.map((r, i) => (
+                {report.risk.reasons.map((r, i) => (
                   <li key={i} className="flex gap-2">
                     <span className="text-zinc-500">▸</span>
                     <span>{r}</span>
@@ -251,7 +267,7 @@ export default function Home() {
                 ))}
               </ul>
 
-              {(report.market || report.security) && (
+              {(report.market || report.contractSecurity) && (
                 <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                   {report.market && (
                     <div className="bg-zinc-900/60 rounded-xl p-3">
@@ -261,20 +277,20 @@ export default function Home() {
                       {report.market.liquidityUsd != null && (
                         <div>Liquidity ${report.market.liquidityUsd.toLocaleString()}</div>
                       )}
-                      {report.market.ageDays != null && (
-                        <div>Age {report.market.ageDays}d</div>
+                      {report.market.volume24h != null && (
+                        <div>Vol 24h ${report.market.volume24h.toLocaleString()}</div>
                       )}
-                      {report.market.chain && <div className="capitalize">{report.market.chain}</div>}
+                      {report.market.chainId && <div className="capitalize">{report.market.chainId}</div>}
                     </div>
                   )}
-                  {report.security && (
+                  {report.contractSecurity && (
                     <div className="bg-zinc-900/60 rounded-xl p-3">
                       <div className="text-xs uppercase tracking-widest text-zinc-500 font-bold mb-1">
                         Contract
                       </div>
-                      <div>Honeypot: {report.security.honeypot ? "⚠️ yes" : "no"}</div>
-                      <div>Mintable: {report.security.mintable ? "⚠️ yes" : "no"}</div>
-                      <div>Hidden owner: {report.security.hiddenOwner ? "⚠️ yes" : "no"}</div>
+                      <div>Honeypot: {report.contractSecurity.isHoneypot ? "⚠️ yes" : "no"}</div>
+                      <div>Mintable: {report.contractSecurity.isMintable ? "⚠️ yes" : "no"}</div>
+                      <div>Hidden owner: {report.contractSecurity.hiddenOwner ? "⚠️ yes" : "no"}</div>
                     </div>
                   )}
                 </div>
