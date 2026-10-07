@@ -7,7 +7,7 @@ Built for the Colosseum Crypto World's Fair hackathon (Base track).
 
 Live: https://rugshield-xi.vercel.app
 
-![landing](screenshots/01-landing.png)
+![landing](screenshots/01-landing.jpg)
 
 ## How it works
 
@@ -18,17 +18,17 @@ Live: https://rugshield-xi.vercel.app
    no API key, no subscription, no middlemen.
 4. Get a 0–100 score, A–F grade, itemized reasons, market + contract security breakdown.
 
-![payment](screenshots/02-payment.png)
+![payment](screenshots/02-payment.jpg)
 
 ## Real scans
 
 **openhuman — C (moderate risk):** contract clean, but the pair is hours old with thin volume.
 
-![openhuman report](screenshots/03-report-openhuman.png)
+![openhuman report](screenshots/03-report-openhuman.jpg)
 
 **tacocat — D (high risk):** $82K volume against $9K liquidity on a day-old pair.
 
-![tacocat report](screenshots/04-report-tacocat.png)
+![tacocat report](screenshots/04-report-tacocat.jpg)
 
 ## The risk engine
 
